@@ -4,11 +4,16 @@
 # Author:       Alexey Vlaskin
 # Description:  This tool made for the labeling images at scale.
 # -------------------------------------------------------------------------------
-from tkinter import *
-from tkinter import messagebox as tkMessageBox
+try:
+    from tkinter import *
+    from tkinter import messagebox as tkMessageBox
+    import queue
+except ImportError:
+    from Tkinter import *
+    import tkMessageBox
+    import Queue as queue
 from PIL import Image, ImageTk, ImageDraw
 from threading import Thread
-import queue
 from handler import ImageHandler
 
 # Ideally we would want to set those from the UI. But for now it will do.
