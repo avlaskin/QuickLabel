@@ -12,6 +12,8 @@ class ImageHandler:
         self.loaded = False
         self.selected = [0]
         self.lastError = ""
+        self.csv_delimiter = ";"
+        self.csv_quotes = '"'
 
     def scan_dir(self, dir_name):
         self.get_files(dir_name)
@@ -56,10 +58,25 @@ class ImageHandler:
 
     def export_labels(self, file_name):
         with open(file_name, 'w', newline='') as csvfile:
-            label_writer = csv.writer(csvfile, delimiter=';',
-                                      quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            label_writer = csv.writer(csvfile, delimiter=self.csv_delimiter,
+                                      quotechar=self.csv_quotes, quoting=csv.QUOTE_MINIMAL)
             for i in range(self.length):
                 f_name = self.images[i]
                 label = str(self.selected[i])
                 label_writer.writerow([f_name, label])
 
+    def import_labels(self, file_name):
+        if os.path.isfile(file_name):
+            with open(file_name, 'r') as csvfile:
+                label_reader = csv.reader(csvfile, delimiter=self.csv_delimiter, quotechar=self.csv_delimiter)
+                for row in label_reader:
+                    print(row[0])
+                    print(row[1])
+                    try:
+                        index = self.images.index(row[0])
+                    except ValueError:
+                        self.lastError = "We are loading the wrong labels file."
+                        print("We are loading the wrong labels file.")
+                        return
+                    if index > 0:
+                        self.selected[index] = int(row[1])

@@ -13,7 +13,7 @@ from handler import ImageHandler
 
 # Ideally we would want to set those from the UI. But for now it will do.
 # Configuration for paths:
-IMAGE_DIR = './images/'
+DEFAULT_IMAGE_DIR = './images/'
 LABELS_FILE = 'labels.csv'
 
 
@@ -46,6 +46,7 @@ class Labeler:
         self.gridModel = GridModel(cells_shape[0], cells_shape[1], cell_size)
         self.tkimages = []
         self.label_file = label_file
+        self.input_dir = input_dir
         self.current_selected_index = -1
 
         self.parent = master
@@ -70,25 +71,33 @@ class Labeler:
                                                           self.gridModel.canvasShape[1], fill='green')
         # Top Control Panel GUI
         self.controlPanel = Frame(self.frame)
-        self.controlPanel.grid(row=0, column=0, columnspan=4, sticky=N + W)
+        self.controlPanel.grid(row=0, column=0, sticky=N + W + S + E)
         self.controlPanel.config(width=self.gridModel.canvasShape[0])
 
-        self.topLabel = Label(self.controlPanel, text='Found images: %d' % self.handler.length, width=40)
-        self.topLabel.grid(row=0, column=0, sticky=W)
+        self.leftLabel = Label(self.controlPanel, text='Images dir:', anchor="w")
+        self.leftLabel.pack(side=LEFT)
+
+        self.folderEntry = Entry(self.controlPanel, width=30)
+        self.folderEntry.pack(side=LEFT, padx=8)
+        self.folderEntry.insert(0, input_dir)
+
+        self.loadButton = Button(self.controlPanel, text='Load', width=6, command=self.load_pressed)
+        self.loadButton.pack(side=LEFT)
+
+        self.resultLabel = Label(self.controlPanel, text='Found images: %d' % self.handler.length, width=40, anchor="w")
+        self.resultLabel.pack(side=LEFT)
 
         self.exportButton = Button(self.controlPanel, text='Export Labels!', width=20, command=self.export_pressed)
-        self.exportButton.grid(row=0, column=1, padx=50, sticky=N + S)
+        self.exportButton.pack(side=LEFT)
+
+        self.fileLabel = Label(self.controlPanel, text='', width=50, anchor="w")
+        self.fileLabel.pack(side=LEFT)
 
         self.infoButton = Button(self.controlPanel, text='Info', width=5, command=self.info_pressed)
-        self.infoButton.grid(row=0, column=2, sticky=W + E)
+        self.infoButton.pack(side=LEFT)
 
-        self.fileLabel = Label(self.controlPanel, text='', width=40)
-        self.fileLabel.grid(row=0, column=3, padx=10, sticky=E)
-
-        # Load images in the another thread
-        self.thread = Thread(target=self.scan_directory, args=(input_dir,))
-        self.thread.start()
-        self.parent.after(1, self.check_loaded)
+        self.thread = Thread()
+        self.load_pressed()
 
     def check_loaded(self):
         try:
@@ -96,7 +105,7 @@ class Labeler:
             callback()
             self.update_ui()
         except queue.Empty:  # raised when queue is empty
-            self.topLabel.config(text='Found images: %d' % self.handler.get_images_len())
+            self.resultLabel.config(text='Found images: %d' % self.handler.get_images_len())
             self.parent.after(1, self.check_loaded)
 
     def scan_directory(self, input_dir):
@@ -106,10 +115,11 @@ class Labeler:
     def update_ui(self):
         cells_shape = self.gridModel.gridShape
         if len(self.handler.lastError) > 0:
-            self.topLabel.config(text='ERROR!: %s' % self.handler.lastError)
+            self.resultLabel.config(text='ERROR!: %s' % self.handler.lastError)
         if self.handler.get_images_len() > 0:
-            self.topLabel.config(text='Found images: %d' % self.handler.get_images_len())
+            self.resultLabel.config(text='Found images: %d' % self.handler.get_images_len())
             self.screenModel.maxPage = int(1 + self.handler.get_images_len() / (cells_shape[0] * cells_shape[1]))
+            self.handler.import_labels(self.label_file)
             self.load_all_images()
 
     def next_screen(self, _):
@@ -123,13 +133,20 @@ class Labeler:
             self.load_all_images()
 
     def export_pressed(self, event=None):
-        self.topLabel.config(text='Exporting labels to {}...'.format(self.label_file))
+        self.resultLabel.config(text='Exporting labels to {}...'.format(self.label_file))
         self.handler.export_labels(self.label_file)
-        self.topLabel.config(text='Exporting labels to {} is Done!'.format(self.label_file))
+        self.resultLabel.config(text='Exporting labels to {} is Done!'.format(self.label_file))
+
+    def load_pressed(self, event=None):
+        self.handler.loaded = False
+        self.input_dir = self.folderEntry.get()
+        self.thread = Thread(target=self.scan_directory, args=(self.input_dir,))
+        self.thread.start()
+        self.parent.after(1, self.check_loaded)
 
     def info_pressed(self, event=None):
         m = "Here is how we us this tool:\n" \
-            "\n0. Put your dataset images into ./images/ or specify another folder in labeler.py" \
+            "\n0. Put your dataset images into ./images/ or specify another folder and press 'Load'." \
             "\n The app automatically loads this folder.\n" \
             "\n1. Use arrow buttons to page screens. " \
             "\nPrev: <- \nNext: ->\n" \
@@ -243,6 +260,6 @@ class Labeler:
 
 if __name__ == '__main__':
     root = Tk()
-    tool = Labeler(root, IMAGE_DIR, label_file=LABELS_FILE)
+    tool = Labeler(root, DEFAULT_IMAGE_DIR, label_file=LABELS_FILE)
     root.resizable(width=True, height=True)
     root.mainloop()
