@@ -38,8 +38,8 @@ class ImageHandler:
         for filename in os.listdir(dir_name):
             f = os.path.join(dir_name, filename)
             fa = f.split('.')
-            ext = fa[-1]
-            if ext == "jpg" or ext == "jpeg" or ext == "JPEG" or ext == "JPG":
+            ext = fa[-1].lower()
+            if ext in ('jpg', 'png', 'jpeg'):
                 self.images.append(f)
             else:
                 # This recurrency is to support nested dirs
