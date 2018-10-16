@@ -90,7 +90,7 @@ class Labeler:
         self.loadButton = Button(self.controlPanel, text='Load', width=6, command=self.load_pressed)
         self.loadButton.pack(side=LEFT)
 
-        self.resultLabel = Label(self.controlPanel, text='Found images: %d' % self.handler.length, width=40, anchor="w")
+        self.resultLabel = Label(self.controlPanel, text='Found images: %d' % self.handler.numImages, width=40, anchor="w")
         self.resultLabel.pack(side=LEFT)
 
         self.exportButton = Button(self.controlPanel, text='Export Labels!', width=20, command=self.export_pressed)
@@ -111,7 +111,7 @@ class Labeler:
             callback()
             self.update_ui()
         except queue.Empty:  # raised when queue is empty
-            self.resultLabel.config(text='Found images: %d' % self.handler.get_images_len())
+            self.resultLabel.config(text='Found images: %d' % self.handler.numImages)
             self.parent.after(1, self.check_loaded)
 
     def scan_directory(self, input_dir):
@@ -122,9 +122,9 @@ class Labeler:
         cells_shape = self.gridModel.gridShape
         if len(self.handler.lastError) > 0:
             self.resultLabel.config(text='ERROR!: %s' % self.handler.lastError)
-        if self.handler.get_images_len() > 0:
-            self.resultLabel.config(text='Found images: %d' % self.handler.get_images_len())
-            self.screenModel.maxPage = int(1 + self.handler.get_images_len() / (cells_shape[0] * cells_shape[1]))
+        if self.handler.numImages > 0:
+            self.resultLabel.config(text='Found images: %d' % self.handler.numImages)
+            self.screenModel.maxPage = int(1 + self.handler.numImages / (cells_shape[0] * cells_shape[1]))
             self.handler.import_labels(self.label_file)
             self.load_all_images()
 
@@ -172,7 +172,7 @@ class Labeler:
             self.reload_image(-1, -1, overall_index)
 
     def get_index_from_mouse(self, x, y):
-        if self.handler.length == 0:
+        if self.handler.numImages == 0:
             return 0, 0, 0
         shift = self.get_image_shift()
         x_index = int((x - self.gridModel.cellPadding) / (self.gridModel.cellSize + self.gridModel.cellPadding))
@@ -182,7 +182,7 @@ class Labeler:
 
     def mouse_left_click(self, event):
         x_index, y_index, overall_index = self.get_index_from_mouse(event.x, event.y)
-        if overall_index >= self.handler.length:
+        if overall_index >= self.handler.numImages:
             return
         self.handler.toggle_file(overall_index)
         self.current_selected_index = overall_index
@@ -190,14 +190,14 @@ class Labeler:
 
     def mouse_right_click(self, event):
         x_index, y_index, overall_index = self.get_index_from_mouse(event.x, event.y)
-        if overall_index >= self.handler.length:
+        if overall_index >= self.handler.numImages:
             return
         self.handler.nullify_file(overall_index)
         self.reload_image(x_index, y_index)
 
     def mouse_move(self, event):
         x_index, y_index, overall_index = self.get_index_from_mouse(event.x, event.y)
-        if overall_index >= self.handler.length:
+        if overall_index >= self.handler.numImages:
             return
         self.fileLabel.config(text='File: %s' % self.handler.images[overall_index])
 
@@ -209,7 +209,7 @@ class Labeler:
         s = self.gridModel.cellSize
         padding = self.gridModel.cellPadding
         overall_index = shift + x + y * self.gridModel.gridShape[0]
-        if overall_index >= self.handler.get_images_len():
+        if overall_index >= self.handler.numImages:
             return
         position_x = padding + x * (s + padding)
         position_y = padding + y * (s + padding)
@@ -218,8 +218,23 @@ class Labeler:
                         position_y,
                         width=s, height=s)
 
+
+    """
+    Clever chunk of code.
+
+    There can only be N = (W x H) images per page, so we want to know when to
+    stop loading images to our UI.
+
+    Our images are stored on the backend as a list with `numImages`
+    values. Thus "Image Shift" determines how many chunks of size N to skip
+    when interfacing with the data.
+
+    e.g. 4th page of 8x5 images is page_index 3 so begins at index
+        3 * 8 * 5 = 120
+    """
     def get_image_shift(self):
-        return self.screenModel.page * self.gridModel.gridShape[0] * self.gridModel.gridShape[1]
+        gridSize = self.gridModel.gridShape[0] * self.gridModel.gridShape[1]
+        return self.screenModel.page * gridSize
 
     def load_all_images(self):
         z = self.get_image_shift()
@@ -231,7 +246,8 @@ class Labeler:
                 self.load_image(self.handler.images[z], padding + j * (s + padding),
                                 padding + i * (s + padding), width=s, height=s)
                 z += 1
-                if z >= self.handler.get_images_len():
+                print(self.handler.images[z])
+                if z >= self.handler.numImages:
                     return
 
     def load_image(self, image_path, x_offset, y_offset, width=50, height=50):
@@ -242,7 +258,6 @@ class Labeler:
             d = ImageDraw.Draw(img)
             d.text((10, 10), "BROKEN IMAGE", fill=(0, 0, 255))
         img = img.resize((width, height), Image.ANTIALIAS)
-        # img.thumbnail((width, height), Image.ANTIALIAS)
         tkimg = ImageTk.PhotoImage(img)
         self.tkimages.append(tkimg)
         index = self.handler.images.index(image_path)
