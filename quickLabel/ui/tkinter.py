@@ -14,7 +14,8 @@ except ImportError:
     import Queue as queue
 from PIL import Image, ImageTk, ImageDraw
 from threading import Thread
-from handler import ImageHandler
+
+from quickLabel.data.handler import ImageHandler
 
 # Ideally we would want to set those from the UI. But for now it will do.
 # Configuration for paths:
