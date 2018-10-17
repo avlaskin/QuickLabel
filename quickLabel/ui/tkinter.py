@@ -218,7 +218,6 @@ class Labeler:
                         position_y,
                         width=s, height=s)
 
-
     """
     Clever chunk of code.
 
@@ -233,8 +232,8 @@ class Labeler:
         3 * 8 * 5 = 120
     """
     def get_image_shift(self):
-        gridSize = self.gridModel.gridShape[0] * self.gridModel.gridShape[1]
-        return self.screenModel.page * gridSize
+        grid_size = self.gridModel.gridShape[0] * self.gridModel.gridShape[1]
+        return self.screenModel.page * grid_size
 
     def load_all_images(self):
         z = self.get_image_shift()
