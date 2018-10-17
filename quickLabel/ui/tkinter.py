@@ -90,10 +90,7 @@ class Labeler:
         self.loadButton = Button(self.controlPanel, text='Load', width=6, command=self.load_pressed)
         self.loadButton.pack(side=LEFT)
 
-        self.resultLabel = Label(self.controlPanel, text='Found images: %d' % self.handler.numImages, width=45, anchor="w")
-        self.resultLabel.pack(side=LEFT)
-
-        self.outputFileLabel = Label(self.controlPanel, text='Output file:')
+        self.outputFileLabel = Label(self.controlPanel, text='Output file:', width=10)
         self.outputFileLabel.pack(side=LEFT)
 
         self.outputFile = Entry(self.controlPanel, width=30)
@@ -103,11 +100,14 @@ class Labeler:
         self.exportButton = Button(self.controlPanel, text='Export Labels!', width=20, command=self.export_pressed)
         self.exportButton.pack(side=LEFT)
 
-        self.fileLabel = Label(self.controlPanel, text='', width=70, anchor="w")
-        self.fileLabel.pack(side=LEFT)
+        self.textDisplayLabel = Label(self.controlPanel, text='Found images: %d' % self.handler.numImages, width=100, anchor="w")
+        self.textDisplayLabel.pack(side=LEFT)
 
         self.infoButton = Button(self.controlPanel, text='Info', width=5, command=self.info_pressed)
-        self.infoButton.pack(side=RIGHT)
+        self.infoButton.pack(side=LEFT)
+
+        self.pageCount = Label(self.controlPanel, text=self.screen_count_display)
+        self.pageCount.pack(side=RIGHT)
 
         self.thread = Thread()
         self.load_pressed()
@@ -118,7 +118,7 @@ class Labeler:
             callback()
             self.update_ui()
         except queue.Empty:  # raised when queue is empty
-            self.resultLabel.config(text='Found images: %d' % self.handler.numImages)
+            self.textDisplayLabel.config(text='Found images: %d' % self.handler.numImages)
             self.parent.after(1, self.check_loaded)
 
     def scan_directory(self, input_dir):
@@ -128,28 +128,34 @@ class Labeler:
     def update_ui(self):
         cells_shape = self.gridModel.gridShape
         if len(self.handler.lastError) > 0:
-            self.resultLabel.config(text='ERROR!: %s' % self.handler.lastError)
+            self.textDisplayLabel.config(text='ERROR!: %s' % self.handler.lastError)
         if self.handler.numImages > 0:
-            self.resultLabel.config(text='Found images: %d' % self.handler.numImages)
-            self.screenModel.maxPage = int(1 + self.handler.numImages / (cells_shape[0] * cells_shape[1]))
-            self.handler.import_labels(self.output_file)
+            self.textDisplayLabel.config(text='Found images: %d' % self.handler.numImages)
+            self.screenModel.maxPage = (self.handler.numImages // (cells_shape[0] * cells_shape[1]))
+            # self.handler.import_labels(self.output_file)
             self.load_all_images()
 
     def next_screen(self, _):
-        if self.screenModel.page + 1 < self.screenModel.maxPage:
+        if self.screenModel.page + 1 <= self.screenModel.maxPage:
             self.screenModel.page += 1
             self.load_all_images()
+            self.pageCount.config(text=self.screen_count_display)
 
     def previous_screen(self, _):
         if self.screenModel.page - 1 >= 0:
             self.screenModel.page -= 1
             self.load_all_images()
+            self.pageCount.config(text=self.screen_count_display)
+
+    @property
+    def screen_count_display(self):
+        return 'Page: ' + str(self.screenModel.page + 1) + '/' + str(self.screenModel.maxPage + 1)
 
     def export_pressed(self, event=None):
         self.output_file = self.outputFile.get()
-        self.resultLabel.config(text='Exporting labels to {}...'.format(self.output_file))
+        self.textDisplayLabel.config(text='Exporting labels to {}...'.format(self.output_file))
         self.handler.export_labels(self.output_file)
-        self.resultLabel.config(text='Exporting labels to {} is Done!'.format(self.output_file))
+        self.textDisplayLabel.config(text='Exporting labels to {} is Done!'.format(self.output_file))
 
     def load_pressed(self, event=None):
         self.handler.loaded = False
@@ -207,7 +213,7 @@ class Labeler:
         x_index, y_index, overall_index = self.get_index_from_mouse(event.x, event.y)
         if overall_index >= self.handler.numImages:
             return
-        self.fileLabel.config(text='File: %s' % self.handler.images[overall_index])
+        self.textDisplayLabel.config(text='File: %s' % self.handler.images[overall_index])
 
     def reload_image(self, x, y, overall_index=-1):
         shift = self.get_image_shift()
