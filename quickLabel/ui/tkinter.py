@@ -174,7 +174,7 @@ class Labeler:
             "\n3. After all done, press Export button to export labels file." \
             "\n4. Click right button to make the value 0." \
             "\n5. Click several times to increase the value up to 5." \
-            "\n6. Last image_scores image can be set to 0 by pressing '0'." \
+            "\n6. Last selected image can be set to 0 by pressing '0'." \
             "\n7. After all done, press Export button or 'e' to export labels file." \
             "\n8. File labels.csv will be created after all done."
         tkMessageBox.showinfo("Usage", message=m)
