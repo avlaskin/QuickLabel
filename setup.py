@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
    name='quickLabel',
-   version='1.0.1',
+   version='1.1.1',
    description='An image labeling tool for deep learning datasets.',
    author='Alexey Vlaskin',
    author_email='alex@avlaskin.com',
