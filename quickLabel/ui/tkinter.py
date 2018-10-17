@@ -96,11 +96,11 @@ class Labeler:
         self.exportButton = Button(self.controlPanel, text='Export Labels!', width=20, command=self.export_pressed)
         self.exportButton.pack(side=LEFT)
 
-        self.fileLabel = Label(self.controlPanel, text='', width=50, anchor="w")
+        self.fileLabel = Label(self.controlPanel, text='', width=120, anchor="w")
         self.fileLabel.pack(side=LEFT)
 
         self.infoButton = Button(self.controlPanel, text='Info', width=5, command=self.info_pressed)
-        self.infoButton.pack(side=LEFT)
+        self.infoButton.pack(side=RIGHT)
 
         self.thread = Thread()
         self.load_pressed()
