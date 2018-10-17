@@ -9,7 +9,7 @@ class ImageHandler:
     def __init__(self):
         self.images = []
         self.loaded = False
-        self.selected = [0]
+        self.image_scores = [0]
         self.lastError = ""
         self.csv_delimiter = ";"
         self.csv_quotes = '"'
@@ -20,9 +20,9 @@ class ImageHandler:
 
     def scan_dir(self, dir_name):
         self.get_files(dir_name)
-        self.selected = [0] * self.numImages
+        self.image_scores = [0] * self.numImages
         for i in range(self.numImages):
-            self.selected[i] = 0
+            self.image_scores[i] = 0
 
     def get_files(self, dir_name, update_load=True):
         """Given a directory `dir_name`, recursively scans for image
@@ -51,13 +51,13 @@ class ImageHandler:
 
     def toggle_file(self, index):
         """Increments file values in the UI by 1"""
-        self.selected[index] = self.selected[index] + 1
-        if self.selected[index] > 5:
-            self.selected[index] = 0
+        self.image_scores[index] = self.image_scores[index] + 1
+        if self.image_scores[index] > 5:
+            self.image_scores[index] = 0
 
     def nullify_file(self, index):
         """Sets file values in the UI to 0"""
-        self.selected[index] = 0
+        self.image_scores[index] = 0
 
     def export_labels(self, file_name):
         with open(file_name, 'w', newline='') as csvfile:
@@ -65,7 +65,7 @@ class ImageHandler:
                                       quotechar=self.csv_quotes, quoting=csv.QUOTE_MINIMAL)
             for i in range(self.numImages):
                 f_name = self.images[i]
-                label = str(self.selected[i])
+                label = str(self.image_scores[i])
                 label_writer.writerow([f_name, label])
 
     def import_labels(self, file_name):
@@ -82,4 +82,4 @@ class ImageHandler:
                         print("We are loading the wrong labels file.")
                         return
                     if index > 0:
-                        self.selected[index] = int(row[1])
+                        self.image_scores[index] = int(row[1])

@@ -160,7 +160,7 @@ class Labeler:
             "\n3. After all done, press Export button to export labels file." \
             "\n4. Click right button to make the value 0." \
             "\n5. Click several times to increase the value up to 5." \
-            "\n6. Last selected image can be set to 0 by pressing '0'." \
+            "\n6. Last image_scores image can be set to 0 by pressing '0'." \
             "\n7. After all done, press Export button or 'e' to export labels file." \
             "\n8. File labels.csv will be created after all done."
         tkMessageBox.showinfo("Usage", message=m)
@@ -246,7 +246,6 @@ class Labeler:
                 self.load_image(self.handler.images[z], padding + j * (s + padding),
                                 padding + i * (s + padding), width=s, height=s)
                 z += 1
-                print(self.handler.images[z])
                 if z >= self.handler.numImages:
                     return
 
@@ -261,10 +260,10 @@ class Labeler:
         tkimg = ImageTk.PhotoImage(img)
         self.tkimages.append(tkimg)
         index = self.handler.images.index(image_path)
-        value = self.handler.selected[index]
+        value = self.handler.image_scores[index]
         if index >= 0:
             self.mainPanel.create_image(x_offset, y_offset, image=tkimg, anchor=NW)
-        if self.handler.selected[index] > 0:
+        if self.handler.image_scores[index] > 0:
             # Draw selection if needed
             lw = 2
             self.mainPanel.create_line(x_offset + lw, y_offset + lw,
@@ -274,7 +273,7 @@ class Labeler:
                                        x_offset + lw, y_offset + lw,
                                        width=lw * 2,
                                        fill='red')
-            # Draw label to show selected value
+            # Draw label to show image_scores value
             self.mainPanel.create_text(x_offset + width - lw * 10, y_offset + height - lw * 10, fill='red',
                                        text='%d' % value)
 
