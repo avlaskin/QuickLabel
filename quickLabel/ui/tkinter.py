@@ -45,14 +45,14 @@ class Labeler:
     """Class for UI to label images.
     """
 
-    def __init__(self, master, input_dir, label_file='labels.csv', cells_shape=(8, 5), cell_size=200):
+    def __init__(self, master, input_dir, output_file='labels.csv', cells_shape=(8, 5), cell_size=200):
         self.callback_queue = queue.Queue()
         self.handler = ImageHandler()
         self.screenModel = ScreenStateModel()
         self.gridModel = GridModel(cells_shape[0], cells_shape[1], cell_size)
         self.tkimages = []
-        self.label_file = label_file
         self.input_dir = input_dir
+        self.output_file = output_file
         self.current_selected_index = -1
 
         self.parent = master
@@ -90,13 +90,20 @@ class Labeler:
         self.loadButton = Button(self.controlPanel, text='Load', width=6, command=self.load_pressed)
         self.loadButton.pack(side=LEFT)
 
-        self.resultLabel = Label(self.controlPanel, text='Found images: %d' % self.handler.numImages, width=40, anchor="w")
+        self.resultLabel = Label(self.controlPanel, text='Found images: %d' % self.handler.numImages, width=45, anchor="w")
         self.resultLabel.pack(side=LEFT)
+
+        self.outputFileLabel = Label(self.controlPanel, text='Output file:')
+        self.outputFileLabel.pack(side=LEFT)
+
+        self.outputFile = Entry(self.controlPanel, width=30)
+        self.outputFile.pack(side=LEFT, padx=8)
+        self.outputFile.insert(0, output_file)
 
         self.exportButton = Button(self.controlPanel, text='Export Labels!', width=20, command=self.export_pressed)
         self.exportButton.pack(side=LEFT)
 
-        self.fileLabel = Label(self.controlPanel, text='', width=120, anchor="w")
+        self.fileLabel = Label(self.controlPanel, text='', width=70, anchor="w")
         self.fileLabel.pack(side=LEFT)
 
         self.infoButton = Button(self.controlPanel, text='Info', width=5, command=self.info_pressed)
@@ -125,7 +132,7 @@ class Labeler:
         if self.handler.numImages > 0:
             self.resultLabel.config(text='Found images: %d' % self.handler.numImages)
             self.screenModel.maxPage = int(1 + self.handler.numImages / (cells_shape[0] * cells_shape[1]))
-            self.handler.import_labels(self.label_file)
+            self.handler.import_labels(self.output_file)
             self.load_all_images()
 
     def next_screen(self, _):
@@ -139,9 +146,10 @@ class Labeler:
             self.load_all_images()
 
     def export_pressed(self, event=None):
-        self.resultLabel.config(text='Exporting labels to {}...'.format(self.label_file))
-        self.handler.export_labels(self.label_file)
-        self.resultLabel.config(text='Exporting labels to {} is Done!'.format(self.label_file))
+        self.output_file = self.outputFile.get()
+        self.resultLabel.config(text='Exporting labels to {}...'.format(self.output_file))
+        self.handler.export_labels(self.output_file)
+        self.resultLabel.config(text='Exporting labels to {} is Done!'.format(self.output_file))
 
     def load_pressed(self, event=None):
         self.handler.loaded = False
@@ -279,6 +287,6 @@ class Labeler:
 
 if __name__ == '__main__':
     root = Tk()
-    tool = Labeler(root, DEFAULT_IMAGE_DIR, label_file=LABELS_FILE)
+    tool = Labeler(root, DEFAULT_IMAGE_DIR, output_file=LABELS_FILE)
     root.resizable(width=True, height=True)
     root.mainloop()
