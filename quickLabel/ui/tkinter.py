@@ -14,7 +14,8 @@ except ImportError:
     import Queue as queue
 from PIL import Image, ImageTk, ImageDraw
 from threading import Thread
-from handler import ImageHandler
+
+from quickLabel.data.handler import ImageHandler
 
 # Ideally we would want to set those from the UI. But for now it will do.
 # Configuration for paths:
@@ -44,14 +45,14 @@ class Labeler:
     """Class for UI to label images.
     """
 
-    def __init__(self, master, input_dir, label_file='labels.csv', cells_shape=(8, 5), cell_size=200):
+    def __init__(self, master, input_dir, output_file='labels.csv', cells_shape=(8, 5), cell_size=200):
         self.callback_queue = queue.Queue()
         self.handler = ImageHandler()
         self.screenModel = ScreenStateModel()
         self.gridModel = GridModel(cells_shape[0], cells_shape[1], cell_size)
         self.tkimages = []
-        self.label_file = label_file
         self.input_dir = input_dir
+        self.output_file = output_file
         self.current_selected_index = -1
 
         self.parent = master
@@ -89,17 +90,24 @@ class Labeler:
         self.loadButton = Button(self.controlPanel, text='Load', width=6, command=self.load_pressed)
         self.loadButton.pack(side=LEFT)
 
-        self.resultLabel = Label(self.controlPanel, text='Found images: %d' % self.handler.length, width=40, anchor="w")
-        self.resultLabel.pack(side=LEFT)
+        self.outputFileLabel = Label(self.controlPanel, text='Output file:', width=10)
+        self.outputFileLabel.pack(side=LEFT)
+
+        self.outputFile = Entry(self.controlPanel, width=30)
+        self.outputFile.pack(side=LEFT, padx=8)
+        self.outputFile.insert(0, output_file)
 
         self.exportButton = Button(self.controlPanel, text='Export Labels!', width=20, command=self.export_pressed)
         self.exportButton.pack(side=LEFT)
 
-        self.fileLabel = Label(self.controlPanel, text='', width=50, anchor="w")
-        self.fileLabel.pack(side=LEFT)
+        self.textDisplayLabel = Label(self.controlPanel, text='Found images: %d' % self.handler.numImages, width=100, anchor="w")
+        self.textDisplayLabel.pack(side=LEFT)
 
         self.infoButton = Button(self.controlPanel, text='Info', width=5, command=self.info_pressed)
         self.infoButton.pack(side=LEFT)
+
+        self.pageCount = Label(self.controlPanel, text=self.screen_count_display)
+        self.pageCount.pack(side=RIGHT)
 
         self.thread = Thread()
         self.load_pressed()
@@ -110,7 +118,7 @@ class Labeler:
             callback()
             self.update_ui()
         except queue.Empty:  # raised when queue is empty
-            self.resultLabel.config(text='Found images: %d' % self.handler.get_images_len())
+            self.textDisplayLabel.config(text='Found images: %d' % self.handler.numImages)
             self.parent.after(1, self.check_loaded)
 
     def scan_directory(self, input_dir):
@@ -120,27 +128,34 @@ class Labeler:
     def update_ui(self):
         cells_shape = self.gridModel.gridShape
         if len(self.handler.lastError) > 0:
-            self.resultLabel.config(text='ERROR!: %s' % self.handler.lastError)
-        if self.handler.get_images_len() > 0:
-            self.resultLabel.config(text='Found images: %d' % self.handler.get_images_len())
-            self.screenModel.maxPage = int(1 + self.handler.get_images_len() / (cells_shape[0] * cells_shape[1]))
-            self.handler.import_labels(self.label_file)
+            self.textDisplayLabel.config(text='ERROR!: %s' % self.handler.lastError)
+        if self.handler.numImages > 0:
+            self.textDisplayLabel.config(text='Found images: %d' % self.handler.numImages)
+            self.screenModel.maxPage = (self.handler.numImages // (cells_shape[0] * cells_shape[1]))
+            # self.handler.import_labels(self.output_file)
             self.load_all_images()
 
     def next_screen(self, _):
-        if self.screenModel.page + 1 < self.screenModel.maxPage:
+        if self.screenModel.page + 1 <= self.screenModel.maxPage:
             self.screenModel.page += 1
             self.load_all_images()
+            self.pageCount.config(text=self.screen_count_display)
 
     def previous_screen(self, _):
         if self.screenModel.page - 1 >= 0:
             self.screenModel.page -= 1
             self.load_all_images()
+            self.pageCount.config(text=self.screen_count_display)
+
+    @property
+    def screen_count_display(self):
+        return 'Page: ' + str(self.screenModel.page + 1) + '/' + str(self.screenModel.maxPage + 1)
 
     def export_pressed(self, event=None):
-        self.resultLabel.config(text='Exporting labels to {}...'.format(self.label_file))
-        self.handler.export_labels(self.label_file)
-        self.resultLabel.config(text='Exporting labels to {} is Done!'.format(self.label_file))
+        self.output_file = self.outputFile.get()
+        self.textDisplayLabel.config(text='Exporting labels to {}...'.format(self.output_file))
+        self.handler.export_labels(self.output_file)
+        self.textDisplayLabel.config(text='Exporting labels to {} is Done!'.format(self.output_file))
 
     def load_pressed(self, event=None):
         self.handler.loaded = False
@@ -171,7 +186,7 @@ class Labeler:
             self.reload_image(-1, -1, overall_index)
 
     def get_index_from_mouse(self, x, y):
-        if self.handler.length == 0:
+        if self.handler.numImages == 0:
             return 0, 0, 0
         shift = self.get_image_shift()
         x_index = int((x - self.gridModel.cellPadding) / (self.gridModel.cellSize + self.gridModel.cellPadding))
@@ -181,7 +196,7 @@ class Labeler:
 
     def mouse_left_click(self, event):
         x_index, y_index, overall_index = self.get_index_from_mouse(event.x, event.y)
-        if overall_index >= self.handler.length:
+        if overall_index >= self.handler.numImages:
             return
         self.handler.toggle_file(overall_index)
         self.current_selected_index = overall_index
@@ -189,16 +204,16 @@ class Labeler:
 
     def mouse_right_click(self, event):
         x_index, y_index, overall_index = self.get_index_from_mouse(event.x, event.y)
-        if overall_index >= self.handler.length:
+        if overall_index >= self.handler.numImages:
             return
         self.handler.nullify_file(overall_index)
         self.reload_image(x_index, y_index)
 
     def mouse_move(self, event):
         x_index, y_index, overall_index = self.get_index_from_mouse(event.x, event.y)
-        if overall_index >= self.handler.length:
+        if overall_index >= self.handler.numImages:
             return
-        self.fileLabel.config(text='File: %s' % self.handler.images[overall_index])
+        self.textDisplayLabel.config(text='File: %s' % self.handler.images[overall_index])
 
     def reload_image(self, x, y, overall_index=-1):
         shift = self.get_image_shift()
@@ -208,7 +223,7 @@ class Labeler:
         s = self.gridModel.cellSize
         padding = self.gridModel.cellPadding
         overall_index = shift + x + y * self.gridModel.gridShape[0]
-        if overall_index >= self.handler.get_images_len():
+        if overall_index >= self.handler.numImages:
             return
         position_x = padding + x * (s + padding)
         position_y = padding + y * (s + padding)
@@ -217,8 +232,22 @@ class Labeler:
                         position_y,
                         width=s, height=s)
 
+    """
+    Clever chunk of code.
+
+    There can only be N = (W x H) images per page, so we want to know when to
+    stop loading images to our UI.
+
+    Our images are stored on the backend as a list with `numImages`
+    values. Thus "Image Shift" determines how many chunks of size N to skip
+    when interfacing with the data.
+
+    e.g. 4th page of 8x5 images is page_index 3 so begins at index
+        3 * 8 * 5 = 120
+    """
     def get_image_shift(self):
-        return self.screenModel.page * self.gridModel.gridShape[0] * self.gridModel.gridShape[1]
+        grid_size = self.gridModel.gridShape[0] * self.gridModel.gridShape[1]
+        return self.screenModel.page * grid_size
 
     def load_all_images(self):
         z = self.get_image_shift()
@@ -230,7 +259,7 @@ class Labeler:
                 self.load_image(self.handler.images[z], padding + j * (s + padding),
                                 padding + i * (s + padding), width=s, height=s)
                 z += 1
-                if z >= self.handler.get_images_len():
+                if z >= self.handler.numImages:
                     return
 
     def load_image(self, image_path, x_offset, y_offset, width=50, height=50):
@@ -241,14 +270,13 @@ class Labeler:
             d = ImageDraw.Draw(img)
             d.text((10, 10), "BROKEN IMAGE", fill=(0, 0, 255))
         img = img.resize((width, height), Image.ANTIALIAS)
-        # img.thumbnail((width, height), Image.ANTIALIAS)
         tkimg = ImageTk.PhotoImage(img)
         self.tkimages.append(tkimg)
         index = self.handler.images.index(image_path)
-        value = self.handler.selected[index]
+        value = self.handler.image_scores[index]
         if index >= 0:
             self.mainPanel.create_image(x_offset, y_offset, image=tkimg, anchor=NW)
-        if self.handler.selected[index] > 0:
+        if self.handler.image_scores[index] > 0:
             # Draw selection if needed
             lw = 2
             self.mainPanel.create_line(x_offset + lw, y_offset + lw,
@@ -258,13 +286,13 @@ class Labeler:
                                        x_offset + lw, y_offset + lw,
                                        width=lw * 2,
                                        fill='red')
-            # Draw label to show selected value
+            # Draw label to show image_scores value
             self.mainPanel.create_text(x_offset + width - lw * 10, y_offset + height - lw * 10, fill='red',
                                        text='%d' % value)
 
 
 if __name__ == '__main__':
     root = Tk()
-    tool = Labeler(root, DEFAULT_IMAGE_DIR, label_file=LABELS_FILE)
+    tool = Labeler(root, DEFAULT_IMAGE_DIR, output_file=LABELS_FILE)
     root.resizable(width=True, height=True)
     root.mainloop()
